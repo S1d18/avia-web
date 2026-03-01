@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Flight Price Tracker — LED / CEK{% endblock %}
+
+{% block content %}
+<div class="index-page">
+    <h1 class="page-title">LED &#8596; CEK &mdash; Мониторинг цен</h1>
+    <p class="page-subtitle">Только прямые рейсы между Санкт-Петербургом и Челябинском</p>
+
+    <div class="route-cards">
+        {% for r in routes %}
+        <a href="/route/{{ r.origin }}/{{ r.destination }}" class="route-card">
+            <div class="route-card__header">
+                <span class="route-card__origin">{{ r.origin_name }}</span>
+                <span class="route-card__arrow">&rarr;</span>
+                <span class="route-card__dest">{{ r.dest_name }}</span>
+            </div>
+            <div class="route-card__codes">{{ r.origin }} &rarr; {{ r.destination }}</div>
+            {% if r.cheapest %}
+            <div class="route-card__price">от {{ "{:,}".format(r.cheapest.price).replace(",", " ") }} &#8381;</div>
+            <div class="route-card__details">
+                <img src="http://pics.avs.io/36/36/{{ r.cheapest.airline }}.png"
+                     alt="{{ r.cheapest.airline }}" class="airline-logo">
+                <span>{{ r.airline_name }}</span>
+            </div>
+            <div class="route-card__date">{{ r.cheapest.depart_date.strftime('%d %B') }}</div>
+            {% else %}
+            <div class="route-card__price route-card__price--empty">Нет данных</div>
+            <div class="route-card__details">Ожидание первого опроса...</div>
+            {% endif %}
+            <div class="route-card__cta">Открыть календарь &rarr;</div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="last-update" id="lastUpdate">
+        {% if last_update %}
+        Обновлено: {{ last_update.strftime('%H:%M:%S') }}
+        {% else %}
+        Ожидание первого обновления...
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh main page every 30 seconds
+    setInterval(() => { window.location.reload(); }, 30000);
+</script>
+{% endblock %}

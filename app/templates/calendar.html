@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ origin_name }} &rarr; {{ dest_name }} — Календарь цен{% endblock %}
+
+{% block content %}
+<div class="calendar-page" data-origin="{{ origin }}" data-destination="{{ destination }}">
+    <div class="calendar-header">
+        <h1 class="page-title">{{ origin_name }} &rarr; {{ dest_name }}</h1>
+        <div class="route-switcher">
+            <a href="/route/LED/CEK" class="route-btn {% if origin == 'LED' %}route-btn--active{% endif %}">СПб &rarr; Чел</a>
+            <a href="/route/CEK/LED" class="route-btn {% if origin == 'CEK' %}route-btn--active{% endif %}">Чел &rarr; СПб</a>
+        </div>
+    </div>
+
+    <div class="month-nav">
+        <button class="month-btn" id="prevMonth">&#9664; </button>
+        <span class="month-label" id="monthLabel"></span>
+        <button class="month-btn" id="nextMonth"> &#9654;</button>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid">
+        <div class="calendar-loading">Загрузка...</div>
+    </div>
+
+    <div class="legend">
+        <span class="legend-item"><span class="legend-dot legend-dot--low"></span> Дёшево</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--mid"></span> Средне</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--high"></span> Дорого</span>
+        <span class="legend-item">&darr; цена снизилась</span>
+        <span class="legend-item">&uarr; цена выросла</span>
+    </div>
+
+    <!-- Flight details modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="flightModal">
+            <div class="modal__header">
+                <h2 class="modal__title" id="modalTitle"></h2>
+                <button class="modal__close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal__body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <div class="last-update" id="lastUpdate">Загрузка...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        initCalendar();
+    });
+</script>
+{% endblock %}
