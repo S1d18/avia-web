@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Горячие билеты — ближайшие вылеты{% endblock %}
+
+{% block content %}
+<div class="hot-page">
+    <h1 class="page-title">Горячие билеты</h1>
+    <p class="page-subtitle">Самые дешёвые рейсы в ближайшие 14 дней</p>
+
+    <div class="hot-list" id="hotList">
+        <div class="deals-placeholder">Загрузка...</div>
+    </div>
+
+    <div class="last-update" id="lastUpdate"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/hot_deals.js') }}"></script>
+{% endblock %}

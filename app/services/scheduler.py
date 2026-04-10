@@ -14,12 +14,9 @@ def init_scheduler(app):
     Primary data source: Playwright on PCs → POST /api/scrape/import every 10 min.
 
     Scheduled jobs on RPi:
-    - link_poll: daily at 00:00 — PFD only, fills in affiliate links for existing flights
+    - discovery_light: weekly Monday 00:00 — PFD API for 6 months, discovers new flights
+      and updates affiliate links (does NOT overwrite prices from Playwright)
     - update_airlines: every 24h — airlines directory cache
-
-    First run with clean DB:
-    1. Run Playwright from PC: python scrape_and_send.py --days 90
-    2. link_poll will then fill affiliate links for discovered flights
     """
     global _scheduler
 
@@ -36,12 +33,13 @@ def init_scheduler(app):
 
     _scheduler = BackgroundScheduler(daemon=True)
 
-    # Daily: affiliate link update (PFD only) at 00:00
+    # Weekly (Monday 00:00): discover new flights + update links (PFD API, 6 months)
     _scheduler.add_job(
-        tracker.link_poll,
+        tracker.discovery_light,
         'cron',
+        day_of_week='mon',
         hour=0, minute=0,
-        id='link_poll',
+        id='discovery_light',
         replace_existing=True,
     )
 
@@ -55,7 +53,7 @@ def init_scheduler(app):
     )
 
     _scheduler.start()
-    logger.info('Scheduler started: link_poll at 00:00, airlines every %d h',
+    logger.info('Scheduler started: discovery_light at 00:00, airlines every %d h',
                 Config.AIRLINES_UPDATE_HOURS)
 
     # On startup: update airlines only (link_poll will run at 00:00)

@@ -576,24 +576,29 @@ class PriceTracker:
             logger.info('Availability restored: %d flights for %s->%s', changed, origin, destination)
 
     # ------------------------------------------------------------------
-    # Affiliate link poll (daily) — PFD only, updates link field
+    # Discovery light (daily at 00:00) — PFD: new flights + links
     # ------------------------------------------------------------------
 
-    def link_poll(self):
-        """Daily affiliate link update: fetch PFD and update link field for known flights."""
-        logger.info('Starting link poll (PFD for affiliate links)...')
+    def discovery_light(self):
+        """Daily discovery via PFD API for 3 months.
+        - New flights: create with API price as initial
+        - Existing flights: update link, flight_number, duration — but NOT price
+        """
+        logger.info('Starting discovery_light (PFD 6 months)...')
         with self.app.app_context():
             for origin, dest in ROUTES:
-                self._update_links(origin, dest)
+                self._discovery_light_route(origin, dest)
             self.last_update = datetime.now(timezone.utc)
-        logger.info('Link poll complete.')
+        logger.info('Discovery_light complete.')
 
-    def _update_links(self, origin, destination):
-        """Fetch PFD for 3 months and update link field for matching flights."""
+    def _discovery_light_route(self, origin, destination):
+        """PFD for 3 months: discover new flights, update links for existing."""
         today = date.today()
+        now = datetime.now(timezone.utc)
+        created = 0
         updated = 0
 
-        for m_offset in range(3):
+        for m_offset in range(6):
             month = today.month + m_offset
             year = today.year
             if month > 12:
@@ -610,8 +615,12 @@ class PriceTracker:
                 airline_code = t.get('airline', '')
                 dep_at = t.get('departure_at', '')
                 link = t.get('link', '')
-                if not airline_code or not dep_at or not link:
+                if not airline_code or not dep_at:
                     continue
+
+                price = int(t.get('price', 0))
+                flight_number = t.get('flight_number', '')
+                duration = t.get('duration')
 
                 try:
                     dt = isoparse(dep_at)
@@ -621,7 +630,7 @@ class PriceTracker:
                 except (ValueError, TypeError):
                     continue
 
-                flight = Flight.query.filter_by(
+                existing = Flight.query.filter_by(
                     origin=origin,
                     destination=destination,
                     depart_date=depart_date,
@@ -629,17 +638,45 @@ class PriceTracker:
                     depart_time=depart_time,
                 ).first()
 
-                if flight:
-                    flight.link = link
+                if existing:
+                    # Update link and metadata only, never touch price
+                    if link:
+                        existing.link = link
+                    existing.flight_number = flight_number or existing.flight_number
+                    existing.duration = duration or existing.duration
+                    existing.departure_at = dep_at
+                    existing.updated_at = now
                     updated += 1
+                else:
+                    # New flight — create with API price as initial
+                    if price <= 0:
+                        continue
+                    flight = Flight(
+                        origin=origin,
+                        destination=destination,
+                        depart_date=depart_date,
+                        airline=airline_code,
+                        depart_time=depart_time,
+                        flight_number=flight_number,
+                        price=price,
+                        departure_at=dep_at,
+                        duration=duration,
+                        link=link,
+                        found_at=now,
+                        updated_at=now,
+                    )
+                    db.session.add(flight)
+                    created += 1
 
         try:
             db.session.commit()
         except Exception:
             db.session.rollback()
-            logger.exception('Link update commit failed for %s->%s', origin, destination)
+            logger.exception('discovery_light commit failed for %s->%s',
+                             origin, destination)
 
-        logger.info('Links updated for %s->%s: %d flights', origin, destination, updated)
+        logger.info('discovery_light %s->%s: created=%d, links_updated=%d',
+                     origin, destination, created, updated)
 
     def update_airlines(self):
         """Refresh airline directory cache."""
