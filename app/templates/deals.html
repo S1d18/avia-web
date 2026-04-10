@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Выгодные билеты — туда и обратно{% endblock %}
+
+{% block content %}
+<div class="deals-page">
+    <h1 class="page-title">Выгодные билеты</h1>
+    <p class="page-subtitle">Подбор лучших пар рейсов туда и обратно</p>
+
+    <div class="deals-filters">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="filter-label">Откуда</label>
+                <select id="filterOrigin" class="filter-select">
+                    <option value="LED">Санкт-Петербург (LED)</option>
+                    <option value="CEK">Челябинск (CEK)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Длительность (дней)</label>
+                <div class="filter-range">
+                    <input type="number" id="filterMinDays" class="filter-input" value="7" min="1" max="30">
+                    <span class="filter-dash">&mdash;</span>
+                    <input type="number" id="filterMaxDays" class="filter-input" value="9" min="1" max="30">
+                </div>
+            </div>
+        </div>
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="filter-label">Период поиска</label>
+                <div class="filter-mode-tabs">
+                    <button class="filter-tab filter-tab--active" data-mode="month" id="tabMonth">По месяцу</button>
+                    <button class="filter-tab" data-mode="dates" id="tabDates">По датам</button>
+                </div>
+            </div>
+            <div class="filter-group filter-month-group" id="monthGroup">
+                <label class="filter-label">Месяц</label>
+                <input type="month" id="filterMonth" class="filter-input filter-input--wide">
+            </div>
+            <div class="filter-group filter-dates-group" id="datesGroup" style="display:none">
+                <label class="filter-label">Даты вылета</label>
+                <div class="filter-range">
+                    <input type="date" id="filterDateFrom" class="filter-input">
+                    <span class="filter-dash">&mdash;</span>
+                    <input type="date" id="filterDateTo" class="filter-input">
+                </div>
+            </div>
+        </div>
+        <button class="deals-search-btn" id="searchBtn">Найти</button>
+    </div>
+
+    <div class="deals-results" id="dealsResults">
+        <div class="deals-placeholder">Задайте параметры и нажмите &laquo;Найти&raquo;</div>
+    </div>
+
+    <div class="last-update" id="lastUpdate"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/deals.js') }}"></script>
+{% endblock %}

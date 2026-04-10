@@ -23,6 +23,7 @@ import logging
 import sys
 import time
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import requests
@@ -36,10 +37,33 @@ from app.services.parse_playwright import scrape_all
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-)
+# --- Logging: console + rotating file ---
+# File: logs/scraper.log next to this script. 5 files × 5 MB = 25 MB cap.
+# All loggers (scrape_and_send, parse_playwright, etc.) share these handlers
+# because they attach to the root logger.
+_LOG_DIR = Path(__file__).resolve().parent / 'logs'
+_LOG_DIR.mkdir(exist_ok=True)
+_LOG_FORMAT = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+
+_root_logger = logging.getLogger()
+_root_logger.setLevel(logging.INFO)
+# Avoid duplicate handlers on re-import / reloader restart
+if not any(isinstance(h, RotatingFileHandler) for h in _root_logger.handlers):
+    _file_handler = RotatingFileHandler(
+        _LOG_DIR / 'scraper.log',
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding='utf-8',
+    )
+    _file_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+    _root_logger.addHandler(_file_handler)
+if not any(isinstance(h, logging.StreamHandler)
+           and not isinstance(h, RotatingFileHandler)
+           for h in _root_logger.handlers):
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+    _root_logger.addHandler(_stream_handler)
+
 logger = logging.getLogger('scrape_and_send')
 
 DEFAULT_API_URL = 'https://avia-ai.ru'
@@ -99,10 +123,17 @@ def transform_flights(scrape_data):
                 dt_utc = datetime.fromtimestamp(dep_unix, tz=timezone.utc)
                 depart_time_utc = dt_utc.strftime('%H:%M')
 
-                # Use cheapest no-baggage fare (baggage_count == 0)
-                no_bag = [p for p in f.get('prices', [])
+                # Prefer cheapest no-baggage fare, but fall back to the
+                # overall cheapest tariff if the flight has no hand-luggage
+                # option (some airlines/dates sell only baggage-included
+                # tariffs — without this fallback those flights were being
+                # silently dropped, which is the "missing night flight" bug).
+                prices_list = f.get('prices', [])
+                if not prices_list:
+                    continue
+                no_bag = [p for p in prices_list
                           if p.get('baggage_count', 0) == 0]
-                cheapest = no_bag[0] if no_bag else {}
+                cheapest = no_bag[0] if no_bag else prices_list[0]
                 cheapest_price = cheapest.get('price', 0)
 
                 if cheapest_price <= 0:
@@ -204,6 +235,11 @@ def main():
                         help='Force specific proxy (http://user:pass@host:port) for this run')
     parser.add_argument('--solve-captcha', action='store_true',
                         help='Open browser and wait for manual captcha solve before scraping')
+    parser.add_argument('--night-days', type=int, default=0,
+                        help='Extended scrape depth (e.g. 90). Once a day at --night-hour, '
+                             'scrape this many days instead of --days')
+    parser.add_argument('--night-hour', type=int, default=0,
+                        help='Hour (0-23) to trigger the extended night scrape (default: 0)')
     args = parser.parse_args()
 
     if not args.key:
@@ -244,6 +280,7 @@ def main():
             logger.info('Proxy rotation: %s', ' -> '.join(labels))
 
     cycle = 0
+    night_done_date = None  # track which date we already did the night run
     while True:
         cycle += 1
         cycle_start = time.time()
@@ -252,16 +289,28 @@ def main():
         proxy = proxies[(cycle - 1) % len(proxies)]
         proxy_label = proxy['server'] if proxy else 'direct'
 
+        # Decide how many days to scrape this cycle
+        now_dt = datetime.now()
+        today_date = now_dt.date()
+        if (args.night_days
+                and now_dt.hour == args.night_hour
+                and night_done_date != today_date):
+            days = args.night_days
+            night_done_date = today_date
+            logger.info('*** Night extended scrape: %d days ***', days)
+        else:
+            days = args.days
+
         try:
             logger.info('=== Cycle %d started [%s] ===', cycle, proxy_label)
 
             # Step 1: Scrape
             logger.info('Scraping: %d days, routes=%s, headless=%s, proxy=%s',
-                        args.days, routes or 'all', args.headless, proxy_label)
+                        days, routes or 'all', args.headless, proxy_label)
 
             captcha_api_key = os.getenv('CAPTCHA_API_KEY', '')
             scrape_data = scrape_all(
-                days_ahead=args.days,
+                days_ahead=days,
                 routes=routes,
                 headless=args.headless,
                 proxy=proxy,

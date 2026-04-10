@@ -940,3 +940,439 @@ a:hover {
         font-size: 11px;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Deals page — "Выгодные билеты"
+   ═══════════════════════════════════════════════════════════════════ */
+
+.deals-filters {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 28px;
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.filter-row:last-of-type {
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-select,
+.filter-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+    border-color: var(--accent);
+}
+
+.filter-input--wide {
+    min-width: 180px;
+}
+
+.filter-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-range .filter-input {
+    width: 100px;
+}
+
+.filter-dash {
+    color: var(--text-muted);
+}
+
+.filter-mode-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.filter-tab {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-tab:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.filter-tab--active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.deals-search-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.deals-search-btn:hover {
+    background: #2563eb;
+}
+
+.deals-placeholder {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.deals-count {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+/* Deal card */
+.deal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: border-color 0.2s;
+}
+
+.deal-card:hover {
+    border-color: var(--accent);
+}
+
+.deal-rank {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 32px;
+    padding-top: 2px;
+}
+
+.deal-total {
+    min-width: 120px;
+    text-align: center;
+    padding-top: 2px;
+}
+
+.deal-total__sum {
+    display: block;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--price-low);
+}
+
+.deal-total__days {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.deal-flights {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Segment (outbound / return) */
+.deal-segment {
+    background: var(--bg-hover);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.deal-segment__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.deal-segment__main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.deal-segment__logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.deal-segment__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.deal-segment__route {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.deal-segment__date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.deal-segment__meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.deal-segment__right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.deal-segment__price {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.deal-segment__buy {
+    display: inline-block;
+    padding: 5px 12px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.deal-segment__buy:hover {
+    background: #2563eb;
+    text-decoration: none;
+    color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Hot deals — "Горячие билеты"
+   ═══════════════════════════════════════════════════════════════════ */
+
+.hot-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.2s;
+}
+
+.hot-card:hover {
+    border-color: var(--accent);
+}
+
+.hot-card__rank {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 32px;
+}
+
+.hot-card__main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hot-card__logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.hot-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.hot-card__route {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.hot-card__date {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.hot-card__meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.hot-card__right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.hot-card__price {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--price-low);
+    white-space: nowrap;
+}
+
+.hot-card__buy {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.hot-card__buy:hover {
+    background: #2563eb;
+    text-decoration: none;
+    color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Responsive — deals & hot
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+    .deals-filters {
+        padding: 16px;
+    }
+
+    .filter-row {
+        flex-direction: column;
+    }
+
+    .filter-range .filter-input {
+        width: 100%;
+        flex: 1;
+    }
+
+    .filter-input--wide {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .deals-search-btn {
+        width: 100%;
+    }
+
+    .deal-card {
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .deal-total {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .deal-total__sum {
+        font-size: 20px;
+    }
+
+    .deal-segment__main {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .deal-segment__right {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 4px;
+    }
+
+    .hot-card {
+        flex-wrap: wrap;
+        padding: 12px 14px;
+    }
+
+    .hot-card__main {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .hot-card__right {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 4px;
+    }
+
+    .hot-card__price {
+        font-size: 18px;
+    }
+}

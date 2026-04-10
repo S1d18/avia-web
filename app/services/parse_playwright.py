@@ -202,6 +202,113 @@ def _ensure_no_captcha(context, captcha_api_key):
 
 
 # ---------------------------------------------------------------------------
+# Direct-flights filter activation
+# ---------------------------------------------------------------------------
+
+def _ensure_direct_filter_active(page, wait_ms=15000):
+    """Make sure the 'Прямые рейсы' filter is CHECKED on the page.
+
+    Reads the real filter state from the DOM (real <input type=checkbox> or
+    aria-checked attribute) and only clicks when it is NOT already active.
+    This is important: aviasales ships the URL ?direct param, but on some
+    tabs/builds the sidebar UI doesn't reflect it — in that case we click
+    to activate, and on tabs where it's already active we leave it alone
+    (so we never accidentally disable it).
+
+    Returns True if a click was performed (caller should drop pre-click
+    capture for this tab because a new filtered chunk is coming).
+    Returns False if already active, not found, or state could not be
+    determined.
+    """
+    try:
+        page.wait_for_selector('text=/Прямые/i', timeout=wait_ms)
+    except Exception:
+        logger.debug('Direct filter text not in DOM within %d ms', wait_ms)
+        return False
+
+    # Locate the filter via JS, read state, click only if inactive.
+    state = page.evaluate(
+        """
+        () => {
+          const walker = document.createTreeWalker(
+            document.body, NodeFilter.SHOW_TEXT, null, false);
+          let textNode;
+          while ((textNode = walker.nextNode())) {
+            const t = (textNode.textContent || '').trim();
+            if (!/^Прямые( рейсы)?$/i.test(t)) continue;
+            // Walk up to find a container with meaningful state
+            let el = textNode.parentElement;
+            for (let depth = 0; el && depth < 10; depth++, el = el.parentElement) {
+              // 1. A real checkbox input inside this ancestor
+              const input = el.querySelector && el.querySelector('input[type="checkbox"]');
+              if (input) {
+                const wasChecked = !!input.checked;
+                let how = 'noop';
+                if (!wasChecked) {
+                  // Prefer the associated <label> — that's what a human
+                  // would click, and it fires the native change event
+                  // correctly for both real and visually-hidden inputs.
+                  if (input.labels && input.labels.length > 0) {
+                    input.labels[0].click();
+                    how = 'label';
+                  } else {
+                    // Fall back to clicking the input directly
+                    input.click();
+                    how = 'input';
+                  }
+                  // If still not checked (React controlled input that
+                  // ignores DOM .click()), set the value natively and
+                  // dispatch a change event.
+                  if (!input.checked) {
+                    const setter = Object.getOwnPropertyDescriptor(
+                      window.HTMLInputElement.prototype, 'checked').set;
+                    setter.call(input, true);
+                    input.dispatchEvent(new Event('change', {bubbles: true}));
+                    input.dispatchEvent(new Event('input', {bubbles: true}));
+                    how = how + '+setter';
+                  }
+                }
+                return {
+                  type: 'input',
+                  how: how,
+                  wasChecked: wasChecked,
+                  nowChecked: !!input.checked,
+                  container: el.tagName.toLowerCase(),
+                };
+              }
+              // 2. aria-checked on the element itself
+              const aria = el.getAttribute && el.getAttribute('aria-checked');
+              if (aria === 'true' || aria === 'false') {
+                const wasChecked = aria === 'true';
+                if (!wasChecked) el.click();
+                return {
+                  type: 'aria',
+                  wasChecked: wasChecked,
+                  nowChecked: el.getAttribute('aria-checked') === 'true',
+                  container: el.tagName.toLowerCase(),
+                };
+              }
+            }
+            return {type: 'unknown', container: 'nostate'};
+          }
+          return {type: 'notext'};
+        }
+        """
+    )
+    logger.info('Direct filter state: %s', state)
+    if not state:
+        return False
+    # Only report "activated" if the state actually flipped — otherwise we'd
+    # mistakenly reset the capture for a tab where the click did nothing.
+    if (state.get('type') in ('input', 'aria')
+            and not state.get('wasChecked')
+            and state.get('nowChecked')):
+        page.wait_for_timeout(1500)  # let new filtered chunk arrive
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Results parser
 # ---------------------------------------------------------------------------
 
@@ -340,9 +447,9 @@ def scrape_route(context, origin, dest, dates, on_date_done=None,
                      batch_start + 1, batch_start + len(batch_dates), len(dates))
 
         pages = []
-        captured = {}        # date_str -> response body
-        captured_sizes = {}  # date_str -> size of captured text
-        has_tickets = set()  # dates where tickets appeared
+        captured = {}         # date_str -> response body with the best ticket set
+        captured_tickets = {} # date_str -> ticket count of that body
+        has_tickets = set()   # dates where any ticket ever appeared
 
         # --- Open all tabs ---
         for d in batch_dates:
@@ -359,15 +466,21 @@ def scrape_route(context, origin, dest, dates, on_date_done=None,
                         if 'json' in ct and 'v3.2/results' in response.url:
                             try:
                                 body = response.json()
-                                new_size = len(response.text())
-                                if new_size > captured_sizes.get(ds, 0):
-                                    captured[ds] = body
-                                    captured_sizes[ds] = new_size
                                 chunk = body[-1] if isinstance(body, list) else body
-                                if chunk.get('tickets'):
+                                tickets = chunk.get('tickets') or []
+                                n = len(tickets)
+                                # Keep the chunk with the MOST tickets, not
+                                # the most bytes — aviasales sometimes sends
+                                # a smaller but more complete chunk later in
+                                # the polling sequence, and "largest-bytes"
+                                # would silently drop that extra flight.
+                                if n > captured_tickets.get(ds, 0):
+                                    captured[ds] = body
+                                    captured_tickets[ds] = n
+                                if tickets:
                                     has_tickets.add(ds)
-                                logger.debug('  [%s] captured %d bytes, tickets=%s',
-                                             ds, new_size, bool(chunk.get('tickets')))
+                                logger.debug('  [%s] chunk tickets=%d (best=%d)',
+                                             ds, n, captured_tickets.get(ds, 0))
                             except Exception:
                                 pass
                 return handler
@@ -401,6 +514,33 @@ def scrape_route(context, origin, dest, dates, on_date_done=None,
             if not opened:
                 continue
             pages.append((page, date_str))
+
+        # --- Phase 2: make sure 'Прямые рейсы' filter is active on every tab ---
+        # All tabs opened in parallel in phase 1 — by the time we get here the
+        # oldest tab has had several seconds to render the filters sidebar.
+        # _ensure_direct_filter_active() reads the real state and only clicks
+        # when the checkbox is NOT already checked, so we can never turn it
+        # off by accident.
+        for idx, (pg, ds) in enumerate(pages):
+            try:
+                clicked = _ensure_direct_filter_active(pg)
+                if clicked:
+                    # Pre-click response was unfiltered — drop it and let the
+                    # new filtered chunk win the "most tickets" race.
+                    captured.pop(ds, None)
+                    captured_tickets.pop(ds, None)
+                    has_tickets.discard(ds)
+                # Save a one-time debug screenshot of the first tab so the
+                # user can visually confirm the filter checkbox state.
+                if idx == 0:
+                    try:
+                        ss = Path(CHROME_PROFILE_DIR).parent / '_debug_filter_state.png'
+                        pg.screenshot(path=str(ss), full_page=False)
+                        logger.info('Filter state screenshot saved: %s', ss)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.debug('Filter activation failed for %s: %s', ds, e)
 
         # --- Wait for results: poll until all tabs have tickets or timeout ---
         if not pages:
