@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ origin_name }} &rarr; {{ dest_name }} — Минимум за месяц{% endblock %}
+
+{% block content %}
+<div class="lowest-page" data-origin="{{ origin }}" data-destination="{{ destination }}">
+    <div class="calendar-header">
+        <h1 class="page-title">Минимум за месяц: {{ origin_name }} &rarr; {{ dest_name }}</h1>
+        <div class="route-switcher">
+            <a href="/lowest/LED/CEK" class="route-btn {% if origin == 'LED' %}route-btn--active{% endif %}">СПб &rarr; Чел</a>
+            <a href="/lowest/CEK/LED" class="route-btn {% if origin == 'CEK' %}route-btn--active{% endif %}">Чел &rarr; СПб</a>
+        </div>
+    </div>
+
+    <p class="page-subtitle">Самая низкая цена, которая когда-либо была зафиксирована для каждой даты</p>
+
+    <div class="month-nav">
+        <button class="month-btn" id="prevMonth">&#9664; </button>
+        <span class="month-label" id="monthLabel"></span>
+        <button class="month-btn" id="nextMonth"> &#9654;</button>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid">
+        <div class="calendar-loading">Загрузка...</div>
+    </div>
+
+    <div class="legend">
+        <span class="legend-item"><span class="legend-dot legend-dot--low"></span> Дёшево</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--mid"></span> Средне</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--high"></span> Дорого</span>
+    </div>
+
+    <div class="last-update" id="lastUpdate">Загрузка...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/lowest.js') }}"></script>
+{% endblock %}
