@@ -361,6 +361,99 @@ def api_deals():
     })
 
 
+# ─── "Минимум за месяц" (исторический) ───────────────────────────
+
+@main_bp.route('/lowest/<origin>/<destination>')
+def lowest_page(origin, destination):
+    """Page: historical lowest price per day for a month."""
+    origin = origin.upper()
+    destination = destination.upper()
+    if (origin, destination) not in ALLOWED_ROUTES:
+        return 'Invalid route', 404
+
+    return render_template('lowest.html',
+                           origin=origin,
+                           destination=destination,
+                           origin_name=ROUTE_NAMES.get(origin, origin),
+                           dest_name=ROUTE_NAMES.get(destination, destination))
+
+
+@main_bp.route('/api/lowest/<origin>/<destination>')
+def api_lowest(origin, destination):
+    """JSON API: per-day historical minimum across all observed prices.
+
+    For every flight on the date, walks PriceHistory + current price and
+    returns the lowest value ever seen, with the timestamp it was first
+    observed and which airline/flight had it.
+    """
+    origin = origin.upper()
+    destination = destination.upper()
+    if (origin, destination) not in ALLOWED_ROUTES:
+        return jsonify({'error': 'Invalid route'}), 404
+
+    month_str = request.args.get('month', '') or date.today().strftime('%Y-%m')
+    try:
+        year, month = map(int, month_str.split('-'))
+    except (ValueError, AttributeError):
+        return jsonify({'error': 'Invalid month format, use YYYY-MM'}), 400
+
+    flights = (Flight.query
+               .filter_by(origin=origin, destination=destination)
+               .filter(db.extract('year', Flight.depart_date) == year)
+               .filter(db.extract('month', Flight.depart_date) == month)
+               .all())
+
+    airline_cache = {}
+
+    def get_airline_name(code):
+        if code not in airline_cache:
+            obj = db.session.get(Airline, code)
+            airline_cache[code] = (obj.name_ru or obj.name_en or code) if obj else code
+        return airline_cache[code]
+
+    days = {}
+    for f in flights:
+        # Reconstruct full price timeline for this flight as (price, observed_at)
+        # Original price (before any changes) lived from found_at until first change.
+        history_asc = sorted(f.price_history, key=lambda h: h.changed_at)
+        observed = []
+        if history_asc:
+            observed.append((history_asc[0].old_price, f.found_at))
+            for h in history_asc:
+                observed.append((h.new_price, h.changed_at))
+        else:
+            observed.append((f.price, f.found_at))
+
+        min_price, min_at = min(observed, key=lambda x: x[0])
+
+        day_key = f.depart_date.isoformat()
+        existing = days.get(day_key)
+        if existing is None or min_price < existing['min_price']:
+            days[day_key] = {
+                'min_price': min_price,
+                'observed_at': _utc_iso(min_at),
+                'airline': f.airline,
+                'airline_name': get_airline_name(f.airline),
+                'airline_logo': f'http://pics.avs.io/36/36/{f.airline}.png',
+                'flight_number': f.flight_number or '',
+            }
+
+    prices = [d['min_price'] for d in days.values()]
+    price_range = {
+        'min': min(prices) if prices else 0,
+        'max': max(prices) if prices else 0,
+    }
+
+    tracker = getattr(current_app, 'tracker', None)
+    last_update = tracker.last_update if tracker else None
+
+    return jsonify({
+        'days': days,
+        'price_range': price_range,
+        'last_update': _utc_iso(last_update),
+    })
+
+
 # ─── "Горячие билеты" ─────────────────────────────────────────────
 
 @main_bp.route('/hot')

@@ -367,6 +367,16 @@ a:hover {
     padding: 1px 5px;
 }
 
+.cal-cell__hist-meta {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.25;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Legend */
 .legend {
     display: flex;
