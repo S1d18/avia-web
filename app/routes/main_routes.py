@@ -283,5 +283,6 @@ def hot_deals_page():
 
 @main_bp.route('/api/hot-deals')
 def api_hot_deals():
-    """Cheapest available flights in the next 14 days, both directions."""
-    return jsonify(get_hot_deals())
+    """Cheapest available flights in the next 14 days, optional ?origin=LED|CEK."""
+    origin = request.args.get('origin')
+    return jsonify(get_hot_deals(origin=origin))

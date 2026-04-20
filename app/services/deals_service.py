@@ -34,17 +34,17 @@ def _last_update_iso():
     return utc_iso(tracker.last_update if tracker else None)
 
 
-def get_hot_deals():
+def get_hot_deals(origin=None):
     today = date.today()
     now_hhmm = datetime.now(timezone.utc).strftime('%H:%M')
     horizon = today + timedelta(days=14)
 
-    flights = (Flight.query
-               .filter(Flight.is_available == True)
-               .filter(Flight.depart_date >= today, Flight.depart_date <= horizon)
-               .order_by(Flight.price.asc())
-               .limit(100)
-               .all())
+    q = (Flight.query
+         .filter(Flight.is_available == True)
+         .filter(Flight.depart_date >= today, Flight.depart_date <= horizon))
+    if origin:
+        q = q.filter(Flight.origin == origin.upper())
+    flights = q.order_by(Flight.price.asc()).limit(100).all()
 
     cache = {}
     results = []
