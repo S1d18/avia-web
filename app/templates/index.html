@@ -18,7 +18,7 @@
             {% if r.cheapest %}
             <div class="route-card__price">от {{ "{:,}".format(r.cheapest.price).replace(",", " ") }} &#8381;</div>
             <div class="route-card__details">
-                <img src="http://pics.avs.io/36/36/{{ r.cheapest.airline }}.png"
+                <img src="{{ r.airline_logo }}"
                      alt="{{ r.cheapest.airline }}" class="airline-logo">
                 <span>{{ r.airline_name }}</span>
             </div>
