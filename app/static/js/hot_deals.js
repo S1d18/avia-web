@@ -7,24 +7,53 @@ const MONTHS_RU_HOT = [
 ];
 const WEEKDAYS_HOT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
 
-document.addEventListener('DOMContentLoaded', loadHotDeals);
+let activeOrigin = 'LED';
+const cache = {};
 
-async function loadHotDeals() {
-    const container = document.getElementById('hotList');
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.filter-tab[data-origin]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-tab[data-origin]').forEach(b => b.classList.remove('filter-tab--active'));
+            btn.classList.add('filter-tab--active');
+            activeOrigin = btn.dataset.origin;
+            showOrigin(activeOrigin);
+        });
+    });
 
+    // Load both tabs in parallel, show LED first
+    Promise.all([fetchOrigin('LED'), fetchOrigin('CEK')]).then(() => {
+        showOrigin(activeOrigin);
+    });
+});
+
+async function fetchOrigin(origin) {
     try {
-        const resp = await fetch('/api/hot-deals');
-        const data = await resp.json();
-        renderHotDeals(data);
-
-        if (data.last_update) {
-            const el = document.getElementById('lastUpdate');
-            const d = new Date(data.last_update);
-            el.textContent = `Обновлено: ${d.toLocaleTimeString('ru-RU')}`;
-        }
+        const resp = await fetch(`/api/hot-deals?origin=${origin}`);
+        cache[origin] = await resp.json();
     } catch (err) {
-        container.innerHTML = '<div class="deals-placeholder">Ошибка загрузки</div>';
+        cache[origin] = null;
         console.error(err);
+    }
+}
+
+function showOrigin(origin) {
+    const container = document.getElementById('hotList');
+    const data = cache[origin];
+
+    if (data === undefined) {
+        container.innerHTML = '<div class="deals-placeholder">Загрузка...</div>';
+        return;
+    }
+    if (!data) {
+        container.innerHTML = '<div class="deals-placeholder">Ошибка загрузки</div>';
+        return;
+    }
+
+    renderHotDeals(data);
+
+    if (data.last_update) {
+        const d = new Date(data.last_update);
+        document.getElementById('lastUpdate').textContent = `Обновлено: ${d.toLocaleTimeString('ru-RU')}`;
     }
 }
 
@@ -47,7 +76,6 @@ function renderHotDeals(data) {
         const time = formatTimeHot(f.departure_at, f.origin);
         const dur = formatDurationHot(f.duration);
 
-        // Days until departure
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const diff = Math.ceil((d - today) / 86400000);
