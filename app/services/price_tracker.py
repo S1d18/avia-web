@@ -308,7 +308,7 @@ class PriceTracker:
         else:
             return
 
-        departure_at = dep_dt.isoformat()
+        departure_at = dep_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Codeshare dedup: if PFD already recorded a flight at this (date, time),
         # skip — it's the same physical flight under a different marketing carrier
